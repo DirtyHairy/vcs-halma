@@ -3,12 +3,20 @@
 	include macro.h
     include halma_macro.h
 
+    seg.u vars
+    org $B2
+
+cursorX  .byte
+cursorY  .byte
+blink    .byte
+scratch0 .byte
+
     seg code_main
     org $F000
 
 COLOR_BAD_FIELD = 0
 COLOR_FIELD_TAKEN = $D6
-COLOR_FIELD_FREE = $0C
+COLOR_FIELD_FREE = $1C
 
 Start
     CLD
@@ -22,6 +30,11 @@ InitMemory
     TXS
 
 Init:
+    LDA #03
+    STA cursorX
+    STA cursorY
+
+; TODO: Off by one --- why?
     LDX #50
 InitMatrixLoop:
     DEX
@@ -29,6 +42,15 @@ InitMatrixLoop:
     STA $80,X
     TXA
     BNE InitMatrixLoop
+
+    LDA #%11100000
+    STA PF0
+    LDA #%00111001
+    STA PF1
+    LDA #%01110011
+    STA PF2
+    LDA #0
+    STA CTRLPF
 
 MainLoop:
     LDA #$02
@@ -45,14 +67,27 @@ Vblank
     LDA #53
     STA TIM64T
 
-    LDA #%11100000
-    STA PF0
-    LDA #%00111001
-    STA PF1
-    LDA #%01110011
-    STA PF2
-    LDA #0
-    STA CTRLPF
+    INC blink
+    LDA blink
+    LSR
+    AND #$0f
+    STA scratch0
+
+    LDA cursorY
+    ASL
+    ASL
+    ASL
+    SEC
+    SBC cursorY
+    CLC
+    ADC cursorX
+    TAY
+
+    LDA $80,Y
+    AND #$f0
+    EOR scratch0
+    STA $80,Y
+
 
 WaitVblank:
     LDA INTIM
