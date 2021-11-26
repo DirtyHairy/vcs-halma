@@ -22,12 +22,12 @@ InitMemory
     TXS
 
 Init:
-    LDX #49
-    LDA #0
+    LDX #50
 InitMatrixLoop:
-    STA $7F,X
-    ADC #13
     DEX
+    LDA startField,X
+    STA $80,X
+    TXA
     BNE InitMatrixLoop
 
 MainLoop:
@@ -98,6 +98,24 @@ OverscanLoop:
     BNE OverscanLoop
 
     JMP MainLoop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; CONSTANTS
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+C___ = COLOR_BAD_FIELD
+C_FF = COLOR_FIELD_FREE
+C__X = COLOR_FIELD_TAKEN
+
+    org $FF00
+startField
+    .byte C___, C___, C__X, C__X, C__X, C___, C___
+    .byte C___, C___, C__X, C__X, C__X, C___, C___
+    .byte C__X, C__X, C__X, C__X, C__X, C__X, C__X
+    .byte C__X, C__X, C__X, C_FF, C__X, C__X, C__X
+    .byte C__X, C__X, C__X, C__X, C__X, C__X, C__X
+    .byte C___, C___, C__X, C__X, C__X, C___, C___
+    .byte C___, C___, C__X, C__X, C__X, C___, C___
 
     org $FFFC
 	.word Start
