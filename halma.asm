@@ -14,6 +14,7 @@ hasSelection    .byte
 blink           .byte
 lastSwcha       .byte
 lastInpt4       .byte
+lastSwchb       .byte
 scratch0        .byte
 scratch1        .byte
 
@@ -36,31 +37,6 @@ InitMemory
     DEX
     BNE InitMemory
 
-Init:
-    LDA #03
-    STA cursorX
-    STA cursorY
-
-    LDA #$FF
-    STA lastSwcha
-
-    LDA #$80
-    STA lastInpt4
-
-    LDA #0
-    STA selectedX
-    STA selectedY
-    STA hasSelection
-
-; TODO: Off by one --- why?
-    LDX #50
-InitMatrixLoop:
-    DEX
-    LDA startField,X
-    STA $80,X
-    TXA
-    BNE InitMatrixLoop
-
     LDA #%11100000
     STA PF0
     LDA #%00111001
@@ -69,6 +45,8 @@ InitMatrixLoop:
     STA PF2
     LDA #0
     STA CTRLPF
+
+    JSR Reset
 
 MainLoop:
     LDA #$02
@@ -267,6 +245,29 @@ selectNew:
 
 afterHandleFire:
 
+handleConsole:
+    LDA SWCHB
+    TAX
+    EOR lastSwchb
+    STA scratch0
+    TXA
+    EOR #$FF
+    AND scratch0
+    STX lastSwchb
+    STA scratch0
+
+    LDA #1
+    BIT scratch0
+    BNE handleReset
+
+    JMP afterHandleComsole
+
+handleReset:
+    JSR Reset
+
+afterHandleComsole:
+
+
 animateBlink:
     INC blink
     LDA blink
@@ -329,8 +330,9 @@ OverscanLoop:
     JMP MainLoop
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; SUBROUTINE
+; SUBROUTINE AttemptMove
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 AttemptMove SUBROUTINE
     LDA hasSelection
     BNE AttemptMoveSameLine
@@ -436,6 +438,41 @@ ApplyMove
     STA hasSelection
 
 AttemptMoveEnd:
+    RTS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; SUBROUTINE Reset
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+Reset SUBROUTINE
+    LDA #03
+    STA cursorX
+    STA cursorY
+
+    LDA #$FF
+    STA lastSwcha
+    STA lastSwchb
+
+    LDA #$80
+    STA lastInpt4
+
+    LDA #0
+    STA selectedX
+    STA selectedY
+    STA hasSelection
+    STA blink
+    STA scratch0
+    STA scratch1
+
+; TODO: Off by one --- why?
+    LDX #50
+InitMatrixLoop:
+    DEX
+    LDA startField,X
+    STA $80,X
+    TXA
+    BNE InitMatrixLoop
+
     RTS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
