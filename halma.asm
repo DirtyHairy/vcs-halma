@@ -15,6 +15,7 @@ blink           .byte
 lastSwcha       .byte
 lastInpt4       .byte
 scratch0        .byte
+scratch1        .byte
 
     seg code_main
     org $F000
@@ -25,6 +26,8 @@ COLOR_FIELD_SELECTED = $66
 
 Start
     CLD
+    LDX #$FF
+    TXS
     LDX #0
     TXA
     TAY
@@ -32,7 +35,6 @@ InitMemory
     STA 0,X
     DEX
     BNE InitMemory
-    TXS
 
 Init:
     LDA #03
@@ -225,8 +227,11 @@ handleFire:
     LDA $80,Y
     AND #$F0
     CMP #(COLOR_FIELD_FREE & $F0)
-    BEQ afterHandleFire
+    BNE moveSelection
+    JSR AttemptMove
+    JMP afterHandleFire
 
+moveSelection:
 deselectCurrent:
     LDA hasSelection
     BEQ afterDeselectCurrent
@@ -321,6 +326,74 @@ OverscanLoop:
     BNE OverscanLoop
 
     JMP MainLoop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; SUBROUTINE
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+AttemptMove SUBROUTINE
+    LDA hasSelection
+    BNE AttemptMoveSameLine
+    JSR AttemptMoveEnd
+
+AttemptMoveSameLine:
+    LDA cursorY
+    CMP selectedY
+    BEQ AttemptMoveRight
+    JSR AttemptMoveEnd
+
+AttemptMoveRight:
+    LDA cursorX
+    CLC
+    ADC #2
+    CMP selectedX
+    BNE AttemptMoveLeft
+
+    STA scratch0
+    SEC
+    SBC #1
+    STA scratch1
+
+    CalculateCurrentIndex scratch1, cursorY
+    LDA $80,Y
+    AND #$F0
+    CMP #(COLOR_FIELD_TAKEN & $F0)
+    BNE AttemptMoveLeft
+    JMP ApplyMoveSameLine
+
+AttemptMoveLeft:
+    LDA cursorX
+    SEC
+    SBC #2
+    CMP selectedX
+    BNE AttemptMoveEnd
+
+    STA scratch0
+    CLC
+    ADC #1
+    STA scratch1
+
+    CalculateCurrentIndex scratch1, cursorY
+    LDA $80,Y
+    AND #$F0
+    CMP #(COLOR_FIELD_TAKEN & $F0)
+    BNE AttemptMoveEnd
+    JMP ApplyMoveSameLine
+
+ApplyMoveSameLine
+    LDA #COLOR_FIELD_FREE
+    STA $80,Y
+    CalculateCurrentIndex selectedX, selectedY
+    LDA #COLOR_FIELD_FREE
+    STA $80,Y
+    LDA cursorX
+    CalculateCurrentIndex cursorX, cursorY
+    LDA #COLOR_FIELD_TAKEN
+    STA $80,Y
+    LDA #0
+    STA hasSelection
+
+AttemptMoveEnd:
+    RTS
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; CONSTANTS
