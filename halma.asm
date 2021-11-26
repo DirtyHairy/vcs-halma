@@ -477,7 +477,7 @@ Reset SUBROUTINE
     STA hasSelection
     STA blink
 
-    LDY #50
+    LDY #49
     LDA #0
     STA scratch0
     LDA #(>startField)
@@ -496,7 +496,6 @@ SelectField:
     STA scratch1
     JMP SelectField
 
-; TODO: Off by one --- why?
 InitMatrixLoop:
     DEY
     LDA (scratch0),Y
