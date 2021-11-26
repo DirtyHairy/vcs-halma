@@ -21,7 +21,7 @@ scratch1        .byte
     org $F000
 
 COLOR_FIELD_TAKEN = $D6
-COLOR_FIELD_FREE = $1C
+COLOR_FIELD_FREE = $16
 COLOR_FIELD_SELECTED = $66
 
 Start
@@ -271,7 +271,8 @@ animateBlink:
     INC blink
     LDA blink
     LSR
-    AND #$0f
+    LSR
+    AND #$07
     STA scratch0
 
     CalculateCurrentIndex cursorX,cursorY
