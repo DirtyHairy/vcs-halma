@@ -6,21 +6,22 @@
     seg.u vars
     org $B2
 
-cursorX     .byte
-cursorY     .byte
-blink       .byte
-lastSwcha   .byte
-scratch0    .byte
+cursorX         .byte
+cursorY         .byte
+selectedX       .byte
+selectedY       .byte
+hasSelection    .byte
+blink           .byte
+lastSwcha       .byte
+lastInpt4       .byte
+scratch0        .byte
 
     seg code_main
     org $F000
 
-COLOR_BAD_FIELD = 0
 COLOR_FIELD_TAKEN = $D6
 COLOR_FIELD_FREE = $1C
-
-MASKED_FIELD_TAKEN = $D0
-MASKED_FIELD_FREE = $10
+COLOR_FIELD_SELECTED = $66
 
 Start
     CLD
@@ -38,8 +39,16 @@ Init:
     STA cursorX
     STA cursorY
 
-    LDA SWCHA
+    LDA #$FF
     STA lastSwcha
+
+    LDA #$80
+    STA lastInpt4
+
+    LDA #0
+    STA selectedX
+    STA selectedY
+    STA hasSelection
 
 ; TODO: Off by one --- why?
     LDX #50
@@ -80,16 +89,15 @@ resetField:
     LDA $80,Y
     AND #$f0
 
-    CMP #MASKED_FIELD_TAKEN
+    CMP #(COLOR_FIELD_TAKEN & $F0)
     BEQ resetFieldTaken
 
-    CMP #MASKED_FIELD_FREE
+    CMP #(COLOR_FIELD_FREE & $F0)
     BEQ resetFieldFree
 
-    JMP afterResetField
+    CMP #(COLOR_FIELD_SELECTED & $F0)
+    BEQ resetFieldSelected
 
-resetBadField:
-    LDA #COLOR_BAD_FIELD
     JMP afterResetField
 
 resetFieldTaken:
@@ -98,6 +106,10 @@ resetFieldTaken:
 
 resetFieldFree:
     LDA #COLOR_FIELD_FREE
+    JMP afterResetField
+
+resetFieldSelected:
+    LDA #COLOR_FIELD_SELECTED
     JMP afterResetField
 
 afterResetField:
@@ -198,6 +210,58 @@ down:
 
 afterHandleJoystick:
 
+handleFire:
+    LDA INPT4
+    TAX
+    EOR lastInpt4
+    STA scratch0
+    TXA
+    EOR #$FF
+    STX lastInpt4
+    AND scratch0
+    BPL afterHandleFire
+
+    CalculateCurrentIndex cursorX, cursorY
+    LDA $80,Y
+    AND #$F0
+    CMP #(COLOR_FIELD_FREE & $F0)
+    BEQ afterHandleFire
+
+deselectCurrent:
+    LDA hasSelection
+    BEQ afterDeselectCurrent
+    CalculateCurrentIndex selectedX, selectedY
+    LDA #(COLOR_FIELD_TAKEN)
+    STA $80,Y
+afterDeselectCurrent:
+
+    LDA hasSelection
+    BEQ selectNew
+
+    LDA #0
+    STA hasSelection
+
+    LDA cursorX
+    CMP selectedX
+    BNE selectNew
+    LDA cursorY
+    CMP selectedY
+    BNE selectNew
+    JMP afterHandleFire
+
+selectNew:
+    LDA #1
+    STA hasSelection
+    LDA cursorX
+    STA selectedX
+    LDA cursorY
+    STA selectedY
+    CalculateCurrentIndex cursorX, cursorY
+    LDA #(COLOR_FIELD_SELECTED)
+    STA $80,Y
+
+afterHandleFire:
+
 animateBlink:
     INC blink
     LDA blink
@@ -262,7 +326,7 @@ OverscanLoop:
 ; CONSTANTS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-C___ = COLOR_BAD_FIELD
+C___ = #0
 C_FF = COLOR_FIELD_FREE
 C__X = COLOR_FIELD_TAKEN
 
