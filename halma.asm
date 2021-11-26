@@ -6,6 +6,10 @@
     seg code_main
     org $F000
 
+COLOR_BAD_FIELD = 0
+COLOR_FIELD_TAKEN = $D6
+COLOR_FIELD_FREE = $0C
+
 Start
     CLD
     LDX #0
@@ -19,7 +23,7 @@ InitMemory
 
 Init:
     LDX #49
-    LDA #42
+    LDA #0
 InitMatrixLoop:
     STA $7F,X
     ADC #13
