@@ -333,13 +333,13 @@ OverscanLoop:
 AttemptMove SUBROUTINE
     LDA hasSelection
     BNE AttemptMoveSameLine
-    JSR AttemptMoveEnd
+    RTS
 
 AttemptMoveSameLine:
     LDA cursorY
     CMP selectedY
     BEQ AttemptMoveRight
-    JSR AttemptMoveEnd
+    JMP AttemptMoveSameCol
 
 AttemptMoveRight:
     LDA cursorX
@@ -358,14 +358,14 @@ AttemptMoveRight:
     AND #$F0
     CMP #(COLOR_FIELD_TAKEN & $F0)
     BNE AttemptMoveLeft
-    JMP ApplyMoveSameLine
+    JMP ApplyMove
 
 AttemptMoveLeft:
     LDA cursorX
     SEC
     SBC #2
     CMP selectedX
-    BNE AttemptMoveEnd
+    BNE AttemptMoveSameCol
 
     STA scratch0
     CLC
@@ -376,16 +376,58 @@ AttemptMoveLeft:
     LDA $80,Y
     AND #$F0
     CMP #(COLOR_FIELD_TAKEN & $F0)
-    BNE AttemptMoveEnd
-    JMP ApplyMoveSameLine
+    BNE AttemptMoveSameCol
+    JMP ApplyMove
 
-ApplyMoveSameLine
+AttemptMoveSameCol:
+    LDA cursorX
+    CMP selectedX
+    BEQ AttemptMoveDown
+    RTS
+
+AttemptMoveDown:
+    LDA cursorY
+    CLC
+    ADC #2
+    CMP selectedY
+    BNE AttemptMoveUp
+
+    STA scratch0
+    SEC
+    SBC #1
+    STA scratch1
+
+    CalculateCurrentIndex cursorX, scratch1
+    LDA $80,Y
+    AND #$F0
+    CMP #(COLOR_FIELD_TAKEN & $F0)
+    BNE AttemptMoveUp
+    JMP ApplyMove
+
+AttemptMoveUp:
+    LDA cursorY
+    SEC
+    SBC #2
+    CMP selectedY
+    BNE AttemptMoveEnd
+
+    STA scratch0
+    CLC
+    ADC #1
+    STA scratch1
+
+    CalculateCurrentIndex cursorX, scratch1
+    LDA $80,Y
+    AND #$F0
+    CMP #(COLOR_FIELD_TAKEN & $F0)
+    BNE AttemptMoveEnd
+
+ApplyMove
     LDA #COLOR_FIELD_FREE
     STA $80,Y
     CalculateCurrentIndex selectedX, selectedY
     LDA #COLOR_FIELD_FREE
     STA $80,Y
-    LDA cursorX
     CalculateCurrentIndex cursorX, cursorY
     LDA #COLOR_FIELD_TAKEN
     STA $80,Y
