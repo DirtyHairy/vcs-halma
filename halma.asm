@@ -20,7 +20,7 @@ scratch0        .byte
 scratch1        .byte
 
     seg code_main
-    org $F000
+    org $F800
 
 COLOR_FIELD_TAKEN = $D6
 COLOR_FIELD_FREE = $16
@@ -513,7 +513,7 @@ C___ = #0
 C_FF = COLOR_FIELD_FREE
 C__X = COLOR_FIELD_TAKEN
 
-    org $FA00
+    org $FE00
 startField
     .byte C___, C___, C__X, C__X, C__X, C___, C___
     .byte C___, C__X, C__X, C__X, C__X, C__X, C___
