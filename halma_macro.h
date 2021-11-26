@@ -67,3 +67,20 @@
     DEX
     BNE .separatorBottomLoop
     ENDM
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+    MAC CalculateCurrentIndex
+.cx SET {1}
+.cy SET {2}
+    LDA .cy
+    ASL
+    ASL
+    ASL
+    SEC
+    SBC .cy
+    CLC
+    ADC .cx
+    TAY
+    ENDM

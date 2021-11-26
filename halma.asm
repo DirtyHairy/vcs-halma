@@ -6,10 +6,11 @@
     seg.u vars
     org $B2
 
-cursorX  .byte
-cursorY  .byte
-blink    .byte
-scratch0 .byte
+cursorX     .byte
+cursorY     .byte
+blink       .byte
+lastSwcha   .byte
+scratch0    .byte
 
     seg code_main
     org $F000
@@ -17,6 +18,9 @@ scratch0 .byte
 COLOR_BAD_FIELD = 0
 COLOR_FIELD_TAKEN = $D6
 COLOR_FIELD_FREE = $1C
+
+MASKED_FIELD_TAKEN = $D0
+MASKED_FIELD_FREE = $10
 
 Start
     CLD
@@ -33,6 +37,9 @@ Init:
     LDA #03
     STA cursorX
     STA cursorY
+
+    LDA SWCHA
+    STA lastSwcha
 
 ; TODO: Off by one --- why?
     LDX #50
@@ -67,21 +74,138 @@ Vblank
     LDA #53
     STA TIM64T
 
+resetField:
+    CalculateCurrentIndex cursorX,cursorY
+
+    LDA $80,Y
+    AND #$f0
+
+    CMP #MASKED_FIELD_TAKEN
+    BEQ resetFieldTaken
+
+    CMP #MASKED_FIELD_FREE
+    BEQ resetFieldFree
+
+    JMP afterResetField
+
+resetBadField:
+    LDA #COLOR_BAD_FIELD
+    JMP afterResetField
+
+resetFieldTaken:
+    LDA #COLOR_FIELD_TAKEN
+    JMP afterResetField
+
+resetFieldFree:
+    LDA #COLOR_FIELD_FREE
+    JMP afterResetField
+
+afterResetField:
+    STA $80,Y
+
+handleJoystick:
+    LDA SWCHA
+    TAX
+    EOR lastSwcha
+    STA scratch0
+    TXA
+    EOR #$FF
+    AND scratch0
+    STX lastSwcha
+    STA scratch0
+
+    BMI right
+
+    LDA #$40
+    BIT scratch0
+    BNE left
+
+    LDA #$20
+    BIT scratch0
+    BNE down
+
+    LDA #$10
+    BIT scratch0
+    BNE up
+
+    JMP afterHandleJoystick
+
+left:
+    LDX cursorX
+    DEX
+    STX scratch0
+
+    BMI afterLeft
+
+    CalculateCurrentIndex scratch0, cursorY
+    LDA $80,Y
+    BEQ afterLeft
+
+    LDA scratch0
+    STA cursorX
+afterLeft:
+    JMP afterHandleJoystick
+
+right:
+    LDX cursorX
+    INX
+    STX scratch0
+    TXA
+
+    CMP #7
+    BCS afterRight
+
+    CalculateCurrentIndex scratch0, cursorY
+    LDA $80,Y
+    BEQ afterRight
+
+    LDA scratch0
+    STA cursorX
+afterRight:
+    JMP afterHandleJoystick
+
+up:
+    LDX cursorY
+    DEX
+    STX scratch0
+
+    BMI afterUp
+
+    CalculateCurrentIndex cursorX, scratch0
+    LDA $80,Y
+    BEQ afterUp
+
+    LDA scratch0
+    STA cursorY
+afterUp:
+    JMP afterHandleJoystick
+
+down:
+    LDX cursorY
+    INX
+    STX scratch0
+    TXA
+
+    CMP #7
+    BCS afterHandleJoystick
+
+    CalculateCurrentIndex cursorX, scratch0
+    LDA $80,Y
+    BEQ afterHandleJoystick
+
+    LDA scratch0
+    STA cursorY
+
+afterHandleJoystick:
+
+animateBlink:
     INC blink
     LDA blink
     LSR
     AND #$0f
     STA scratch0
 
-    LDA cursorY
-    ASL
-    ASL
-    ASL
-    SEC
-    SBC cursorY
-    CLC
-    ADC cursorX
-    TAY
+    CalculateCurrentIndex cursorX,cursorY
 
     LDA $80,Y
     AND #$f0
