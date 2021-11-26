@@ -15,6 +15,7 @@ blink           .byte
 lastSwcha       .byte
 lastInpt4       .byte
 lastSwchb       .byte
+currentField    .byte
 scratch0        .byte
 scratch1        .byte
 
@@ -24,6 +25,8 @@ scratch1        .byte
 COLOR_FIELD_TAKEN = $D6
 COLOR_FIELD_FREE = $16
 COLOR_FIELD_SELECTED = $66
+
+NUMBER_OF_FIELDS = 6
 
 Start
     CLD
@@ -45,6 +48,13 @@ InitMemory
     STA PF2
     LDA #0
     STA CTRLPF
+
+    LDA #$FF
+    STA lastSwcha
+    STA lastSwchb
+
+    LDA #$80
+    STA lastInpt4
 
     JSR Reset
 
@@ -260,7 +270,19 @@ handleConsole:
     BIT scratch0
     BNE handleReset
 
+    LDA #2
+    BIT scratch0
+    BNE handleSelect
+
     JMP afterHandleComsole
+
+handleSelect:
+    INC currentField
+    LDA currentField
+    CMP #(NUMBER_OF_FIELDS)
+    BCC handleReset
+    LDA #0
+    STA currentField
 
 handleReset:
     JSR Reset
@@ -449,28 +471,37 @@ Reset SUBROUTINE
     STA cursorX
     STA cursorY
 
-    LDA #$FF
-    STA lastSwcha
-    STA lastSwchb
-
-    LDA #$80
-    STA lastInpt4
-
     LDA #0
     STA selectedX
     STA selectedY
     STA hasSelection
     STA blink
+
+    LDY #50
+    LDA #0
     STA scratch0
+    LDA #(>startField)
     STA scratch1
+    LDX currentField
+    INX
+SelectField:
+    DEX
+    BEQ InitMatrixLoop
+    LDA scratch0
+    CLC
+    ADC #49
+    STA scratch0
+    LDA scratch1
+    ADC #0
+    STA scratch1
+    JMP SelectField
 
 ; TODO: Off by one --- why?
-    LDX #50
 InitMatrixLoop:
-    DEX
-    LDA startField,X
-    STA $80,X
-    TXA
+    DEY
+    LDA (scratch0),Y
+    STA $80,Y
+    TYA
     BNE InitMatrixLoop
 
     RTS
@@ -483,8 +514,16 @@ C___ = #0
 C_FF = COLOR_FIELD_FREE
 C__X = COLOR_FIELD_TAKEN
 
-    org $FF00
+    org $FA00
 startField
+    .byte C___, C___, C__X, C__X, C__X, C___, C___
+    .byte C___, C__X, C__X, C__X, C__X, C__X, C___
+    .byte C__X, C__X, C__X, C__X, C__X, C__X, C__X
+    .byte C__X, C__X, C__X, C_FF, C__X, C__X, C__X
+    .byte C__X, C__X, C__X, C__X, C__X, C__X, C__X
+    .byte C___, C__X, C__X, C__X, C__X, C__X, C___
+    .byte C___, C___, C__X, C__X, C__X, C___, C___
+
     .byte C___, C___, C__X, C__X, C__X, C___, C___
     .byte C___, C___, C__X, C__X, C__X, C___, C___
     .byte C__X, C__X, C__X, C__X, C__X, C__X, C__X
@@ -492,6 +531,38 @@ startField
     .byte C__X, C__X, C__X, C__X, C__X, C__X, C__X
     .byte C___, C___, C__X, C__X, C__X, C___, C___
     .byte C___, C___, C__X, C__X, C__X, C___, C___
+
+    .byte C___, C___, C__X, C__X, C__X, C___, C___
+    .byte C___, C___, C__X, C__X, C__X, C___, C___
+    .byte C___, C__X, C__X, C__X, C__X, C__X, C__X
+    .byte C___, C__X, C__X, C_FF, C__X, C__X, C__X
+    .byte C___, C__X, C__X, C__X, C__X, C__X, C__X
+    .byte C___, C___, C__X, C__X, C__X, C___, C___
+    .byte C___, C___, C__X, C__X, C__X, C___, C___
+
+    .byte C___, C___, C___, C___, C___, C___, C___
+    .byte C___, C___, C__X, C__X, C__X, C___, C___
+    .byte C___, C__X, C__X, C__X, C__X, C__X, C___
+    .byte C___, C__X, C__X, C_FF, C__X, C__X, C___
+    .byte C___, C__X, C__X, C__X, C__X, C__X, C___
+    .byte C___, C___, C__X, C__X, C__X, C___, C___
+    .byte C___, C___, C___, C___, C___, C___, C___
+
+    .byte C___, C___, C___, C__X, C___, C___, C___
+    .byte C___, C___, C__X, C__X, C__X, C___, C___
+    .byte C___, C__X, C__X, C__X, C__X, C__X, C___
+    .byte C__X, C__X, C__X, C_FF, C__X, C__X, C__X
+    .byte C___, C__X, C__X, C__X, C__X, C__X, C___
+    .byte C___, C___, C__X, C__X, C__X, C___, C___
+    .byte C___, C___, C___, C__X, C___, C___, C___
+
+    .byte C___, C___, C___, C___, C___, C___, C___
+    .byte C___, C___, C___, C_FF, C___, C___, C___
+    .byte C___, C___, C__X, C__X, C__X, C___, C___
+    .byte C___, C__X, C__X, C__X, C__X, C__X, C___
+    .byte C__X, C__X, C__X, C__X, C__X, C__X, C__X
+    .byte C___, C___, C___, C___, C___, C___, C___
+    .byte C___, C___, C___, C___, C___, C___, C___
 
     org $FFFC
 	.word Start
