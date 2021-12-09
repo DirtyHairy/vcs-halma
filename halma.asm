@@ -16,17 +16,27 @@ lastSwcha       .byte
 lastInpt4       .byte
 lastSwchb       .byte
 currentField    .byte
+gameState       .byte
+fieldsRemaining .byte
 scratch0        .byte
 scratch1        .byte
 
     seg code_main
-    org $F800
+    org $F000
 
-COLOR_FIELD_TAKEN = $D6
-COLOR_FIELD_FREE = $16
+COLOR_FIELD_TAKEN    = $D6
+COLOR_FIELD_FREE     = $16
 COLOR_FIELD_SELECTED = $66
 
-NUMBER_OF_FIELDS = 6
+NUMBER_OF_FIELDS = 7
+
+GAME_STATE_RUNNING  = 0
+GAME_STATE_WON      = 1
+GAME_STATE_LOST     = 2
+
+BACKGROUND_WON      = $30
+BACKGROUND_LOST     = $42
+BACKGROUND_RUNNING  = $00
 
 Start
     CLD
@@ -69,9 +79,13 @@ MainLoop:
     LDA #0
     STA VSYNC
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;:
 Vblank
     LDA #53
     STA TIM64T
+
+incrementBlink:
+    INC blink
 
 resetField:
     CalculateCurrentIndex cursorX,cursorY
@@ -104,6 +118,91 @@ resetFieldSelected:
 
 afterResetField:
     STA $80,Y
+
+handleConsole:
+    LDA SWCHB
+    TAX
+    EOR lastSwchb
+    STA scratch0
+    TXA
+    EOR #$FF
+    AND scratch0
+    STX lastSwchb
+    STA scratch0
+
+    LDA #1
+    BIT scratch0
+    BNE handleReset
+
+    LDA #2
+    BIT scratch0
+    BNE handleSelect
+
+    JMP afterHandleConsole
+
+handleSelect:
+    INC currentField
+    LDA currentField
+    CMP #(NUMBER_OF_FIELDS)
+    BCC handleReset
+    LDA #0
+    STA currentField
+
+handleReset:
+    JSR Reset
+
+afterHandleConsole:
+
+handleGameState:
+    LDA gameState
+compareGameStateRunning:
+    CMP #GAME_STATE_RUNNING
+    BNE compareGameStateLost
+    JMP handleGameStateRunning
+
+compareGameStateLost:
+    CMP #GAME_STATE_LOST
+    BNE handleGameStateWon
+    JMP handleGameStateLost
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;:
+handleGameStateWon:
+    LDA blink
+    LSR
+    LSR
+    LSR
+    AND #$07
+    EOR #BACKGROUND_WON
+    TAY
+
+    LDX #49
+animateGameStateWonLoop:
+    DEX
+    LDA $80,X
+
+    BEQ animateGameStateWonLoopCycle
+    CMP #COLOR_FIELD_TAKEN
+    BEQ animateGameStateWonLoopCycle
+
+    STY $80,X
+
+animateGameStateWonLoopCycle:
+    TXA
+    BNE animateGameStateWonLoop
+
+    JMP WaitVblank
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;:
+handleGameStateLost:
+    LDA #BACKGROUND_LOST
+    STA COLUBK
+
+    JMP WaitVblank
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;:
+handleGameStateRunning:
+    LDA #BACKGROUND_RUNNING
+    STA COLUBK
 
 handleJoystick:
     LDA SWCHA
@@ -255,43 +354,7 @@ selectNew:
 
 afterHandleFire:
 
-handleConsole:
-    LDA SWCHB
-    TAX
-    EOR lastSwchb
-    STA scratch0
-    TXA
-    EOR #$FF
-    AND scratch0
-    STX lastSwchb
-    STA scratch0
-
-    LDA #1
-    BIT scratch0
-    BNE handleReset
-
-    LDA #2
-    BIT scratch0
-    BNE handleSelect
-
-    JMP afterHandleComsole
-
-handleSelect:
-    INC currentField
-    LDA currentField
-    CMP #(NUMBER_OF_FIELDS)
-    BCC handleReset
-    LDA #0
-    STA currentField
-
-handleReset:
-    JSR Reset
-
-afterHandleComsole:
-
-
-animateBlink:
-    INC blink
+blinkStateRunning:
     LDA blink
     LSR
     LSR
@@ -304,7 +367,6 @@ animateBlink:
     AND #$f0
     EOR scratch0
     STA $80,Y
-
 
 WaitVblank:
     LDA INTIM
@@ -458,6 +520,12 @@ ApplyMove
     STA $80,Y
     LDA #0
     STA hasSelection
+    DEC fieldsRemaining
+    LDA fieldsRemaining
+    CMP #1
+    BNE AttemptMoveEnd
+    LDA GAME_STATE_WON
+    STA gameState
 
 AttemptMoveEnd:
     RTS
@@ -476,6 +544,10 @@ Reset SUBROUTINE
     STA selectedY
     STA hasSelection
     STA blink
+    STA fieldsRemaining
+
+    LDA #GAME_STATE_RUNNING
+    STA gameState
 
     LDY #49
     LDA #0
@@ -500,6 +572,10 @@ InitMatrixLoop:
     DEY
     LDA (scratch0),Y
     STA $80,Y
+    CMP #COLOR_FIELD_TAKEN
+    BNE AfterCountField
+    INC fieldsRemaining
+AfterCountField:
     TYA
     BNE InitMatrixLoop
 
@@ -514,7 +590,15 @@ C_FF = COLOR_FIELD_FREE
 C__X = COLOR_FIELD_TAKEN
 
     org $FE00
-startField
+startField:
+    .byte C___, C___, C___, C___, C___, C___, C___
+    .byte C___, C___, C___, C___, C___, C___, C___
+    .byte C___, C_FF, C_FF, C_FF, C_FF, C_FF, C___
+    .byte C___, C__X, C_FF, C__X, C__X, C_FF, C___
+    .byte C___, C_FF, C_FF, C_FF, C_FF, C_FF, C___
+    .byte C___, C___, C___, C___, C___, C___, C___
+    .byte C___, C___, C___, C___, C___, C___, C___
+
     .byte C___, C___, C__X, C__X, C__X, C___, C___
     .byte C___, C__X, C__X, C__X, C__X, C__X, C___
     .byte C__X, C__X, C__X, C__X, C__X, C__X, C__X

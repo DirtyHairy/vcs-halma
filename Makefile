@@ -16,9 +16,9 @@ run-bg: $(binary)
 	$(STELLA) $(binary) &
 
 clean:
-	rm -f $(binary)
+	rm -f $(binary) $(binary:.bin=.lst) $(binary:.bin=.sym)
 
 %.bin : %.asm halma_macro.h
-	$(DASM) $< -f3 -o$@
+	$(DASM) $< -f3 -o$@ -l$(binary:.bin=.lst) -s$(binary:.bin=.sym)
 
 .PHONY: all bin clean
